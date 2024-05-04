@@ -2,9 +2,12 @@ import http from "http";
 import path from "path";
 import fs from "fs";
 import { Server } from "socket.io";
-import  {getMessages} from "./database.js"; 
+import {getMessages, addMessage} from "./database.js"; 
+
+await addMessage("hello", 1)
 let m = await getMessages()
 console.log(m)
+
 const __dirname = path.resolve();
 
 let pathToIndex = path.join(__dirname, "static", "index.html");
