@@ -1,6 +1,7 @@
 import { existsSync } from "fs";
 import { open } from "sqlite";
 import sqlite3 from "sqlite3";
+import crypto from "crypto"
 
 let dbfile = "./chat.db";
 let exists = existsSync(dbfile);
@@ -53,11 +54,35 @@ export async function addMessage(msg, userid) {
     }
 }
 export async function isExistUser(login){
-    try{
-        let candidate = await db.all(`SELECT * FROM user WHERE login = ?`, [login])
-        return !candidate.length
-    }catch(errr){
-        console.error(errr)
+    try {
+        let candidate = await db.all(`SELECT * FROM user WHERE login = ?`, [
+            login,
+        ]);
+        return !candidate.length;
+    } catch (errr) {
+        console.error(errr);
     }
+}
+
+
+export async function addUser(login, password){
+    try{
+        await db.run(`INSERT INTO user(login, password) VALUES("${login}", "${password}");`)
+    }catch(error){
+        console.log(error)
+    }
+}
+
+export async function getAuthToken(user){
+    let candidate = await db.all(`SELECT * FROM user WHERE login="${user.login}";`)
+    if(!candidate.length){
+        throw "wrong password"
+    }
+    if(candidate[0].password !== user.password){
+        throw "Wrong password"
+    }
+    return (candidate[0].user_id + "." 
+    + candidate[0].login + "." 
+    + crypto.randomBytes(20)).toString("hex")
 }
 
