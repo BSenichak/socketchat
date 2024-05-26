@@ -81,8 +81,8 @@ export async function getAuthToken(user){
     if(candidate[0].password !== user.password){
         throw "Wrong password"
     }
-    return (candidate[0].user_id + "." 
+    return candidate[0].user_id + "." 
     + candidate[0].login + "." 
-    + crypto.randomBytes(20)).toString("hex")
+    + crypto.randomBytes(20).toString("hex")
 }
 

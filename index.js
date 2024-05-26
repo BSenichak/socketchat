@@ -2,9 +2,16 @@ import http from "http";
 import path from "path";
 import fs from "fs";
 import { Server } from "socket.io";
-import { getMessages, addMessage, isExistUser, addUser, getAuthToken } from "./database.js";
+import {
+    getMessages,
+    addMessage,
+    isExistUser,
+    addUser,
+    getAuthToken,
+} from "./database.js";
+import cookie from "cookie";
 
-const validTokens = []
+const validTokens = [];
 
 const __dirname = path.resolve();
 
@@ -25,12 +32,13 @@ let loginHtml = fs.readFileSync(pathToLoginHtml);
 
 let server = http.createServer((req, res) => {
     try {
-        if (req.url == "/" && req.method == "GET") {
-            return res.end(indexHtmlFile);
-        }
-        if (req.url == "/script.js" && req.method == "GET") {
-            return res.end(scriptFile);
-        }
+        // if (req.url == "/" && req.method == "GET") {
+        //     return res.end(indexHtmlFile);
+        // }
+        // if (req.url == "/script.js" && req.method == "GET") {
+        //     return res.end(scriptFile);
+        // }
+        console.log(req.url)
         if (req.url == "/style.css" && req.method == "GET") {
             return res.end(styleFile);
         }
@@ -52,8 +60,7 @@ let server = http.createServer((req, res) => {
         if (req.url == "/api/login" && req.method == "POST") {
             return loginUser(req, res);
         }
-        res.writeHead(404, "Not found");
-        return res.end();
+        guarded(req, res);
     } catch (error) {
         console.error(error.message);
         res.writeHead(500, "Server error");
@@ -85,16 +92,16 @@ function registerUser(req, res) {
     req.on("end", async function () {
         try {
             data = JSON.parse(data);
-            if(!data.login || !data.password){
-                res.end("login or password is empty")
-                return
+            if (!data.login || !data.password) {
+                res.end("login or password is empty");
+                return;
             }
-            if(!await isExistUser(data.login)){
-                res.end("User is already exist")
-                return
+            if (!(await isExistUser(data.login))) {
+                res.end("User is already exist");
+                return;
             }
-            await addUser(data.login, data.password)
-            res.end("Register success!")
+            await addUser(data.login, data.password);
+            res.end("Register success!");
         } catch (err) {
             console.log(err);
             res.end("Error: " + err);
@@ -102,7 +109,6 @@ function registerUser(req, res) {
     });
     res.end();
 }
-
 
 function loginUser(req, res) {
     let data = "";
@@ -112,19 +118,47 @@ function loginUser(req, res) {
     req.on("end", async function () {
         try {
             data = JSON.parse(data);
-            if(!data.login || !data.password){
-                res.end("login or password is empty")
-                return
+            if (!data.login || !data.password) {
+                res.end("login or password is empty");
+                return;
             }
-            let token = await getAuthToken(data)
-            validTokens.push(token)
-            res.writeHead(200)
-            res.end(token)
+            let token = await getAuthToken(data);
+            validTokens.push(token);
+            res.writeHead(200);
+            res.end(token);
         } catch (err) {
             console.log(err);
-            res.writeHead(500)
+            res.writeHead(500);
             res.end("Error: " + err);
         }
     });
-    res.end();
+}
+
+function getCredentials(req) {
+    let cookies = cookie.parse(req.headers?.cookie || "");
+    let token = cookies?.token;
+    if (!token || !validTokens.includes(token)) return null;
+    let [user_id, login] = token.split(".");
+    if (!user_id || !login) return null;
+    return { user_id, login };
+}
+
+function guarded(req, res) {
+    const credentials = getCredentials(req);
+    try {
+        if (!credentials) {
+            res.writeHead(301, { Location: "/register" });
+            res.end();
+        } else if (req.method == "GET") {
+            switch (req.url) {
+                case "/":
+                    return res.end(indexHtmlFile);
+                case "/script.js":
+                    return res.end(scriptFile);
+            }
+        }
+    } catch (err) {
+        res.writeHead(404);
+        res.end(err);
+    }
 }
